@@ -70,6 +70,18 @@ Prompts:
 - Cases where the system overfits to one preference  
 - Ways the scoring might unintentionally favor some users  
 
+The biggest weakness I found while running my experiments wasn't really in the scoring math, it was in the data. I counted up the genres in songs.csv and 13 out of the 21 songs are the *only* song in their genre. Rock, lofi, and pop are the only genres with any real variety (4, 3, and 2 songs), and everything else, jazz, ambient, classical, metal, country, reggae, folk, hip-hop, R&B, synthwave, indie pop, and EDM, has exactly one entry. So if your favorite genre happens to be jazz, the system doesn't really "recommend" anything for you, it just hands you Coffee Shop Stories every time, whether you wanted something chill or something intense. That's not really personalization, it's just the only song available pretending to be a personalized pick. I only noticed this because I kept seeing the same songs win over and over in my Step 1 stress tests, and when I dug into why, it turned out for some profiles the "winner" was never competing against anything at all.
+
+Here's a simple way to think about it. Imagine a toy box with only one red toy in it. If someone asks for "the red toy," you hand them that one toy every time, no matter what kind of red toy they actually wanted. That's basically what happens to a user who says their favorite genre is jazz, metal, or reggae. The system isn't being smart about it, it just has nothing else to offer, so the "only" choice looks like the "best" choice even when it isn't.
+
+There's a second problem I found too, and it's about how the words have to match exactly. The code checks `song['genre'] == user_prefs['favorite_genre']`, which means the two words have to be spelled the exact same way to count as a match. If a song is labeled "synthwave" and a user types "synth pop," the system says no match at all, even though those two things sound pretty similar to a real person. It's like asking a friend for a "soda" and they say they don't have any, but they're holding a can of "pop" the whole time, same drink, different word, and the system just isn't smart enough to know that.
+
+The same exact-match problem happens with mood. Moods in the dataset are things like "happy," "chill," "intense," "sad," and "melancholic." If a user wants something "energetic" but the system only knows the word "intense," they get zero mood points, even if "energetic" and "intense" mean almost the same thing to a human. The system can't tell that two words are close in meaning, it can only tell if they are spelled identically.
+
+There's also a smaller, sneakier bias in how the acoustic check works. Looking at `score_song()`, a song only gets the acoustic bonus point if its acousticness score is 0.6 or higher (for users who like acoustic songs) or 0.4 or lower (for users who don't). But that leaves a gap right in the middle, between 0.4 and 0.6, where a song gets no acoustic bonus either way. It's like a rule that says "you're only tall enough for the ride if you're really short or really tall," and anyone in between just gets ignored, even though "in between" is a totally normal thing to be.
+
+Put together, all of these problems point to the same root cause: the system was built to compare things that match *perfectly*, but real listeners rarely think in perfectly matching words or perfectly measured numbers. A person doesn't wake up and think "I want exactly 0.9 energy today," they think "I want something upbeat." Because the system can only work with exact labels and exact number ranges, it ends up being unfair in a quiet way, not because it's trying to play favorites, but because its rules are too rigid to notice when two things are basically the same, just described a little differently.
+
 ---
 
 ## 7. Evaluation  
@@ -139,6 +151,54 @@ So the assignment's diagnostic checklist ("Genre weight too strong, OR dataset t
 - **Sunrise City still wins every pop/happy profile** (High-Energy Pop, Zero-Energy Boundary, Max-Energy Boundary), even though "pop" already had 2 songs *before* this fix and gained no new competitor. This confirms that repetition really is a weighting problem — adding more data to a genre that already had variety didn't change the outcome, because the genre+mood ceiling still outweighs a bad energy mismatch.
 
 This is a useful takeaway about debugging recommender systems generally: **the same symptom (one song always ranking #1) can have entirely different root causes for different genres in the same catalog, and testing a fix against one genre doesn't tell you whether it fixed the other.**
+
+### Step 3: Small Data Experiments (Sensitivity Testing)
+
+To test how sensitive the recommender is to its own scoring rules, I ran two separate experiments in `recommender.py`'s `score_song()`, one at a time, then restored the original logic before moving on.
+
+#### Experiment 1: Weight Shift (genre halved, energy doubled)
+
+**Prompt given to the AI coding assistant:** *"In `score_song()`, double the weight of energy similarity from a max of +2.0 to a max of +4.0, and halve the genre match weight from +2.0 to +1.0. Keep mood (+1.0) and acousticness (+1.0) unchanged. Verify the math stays valid — no negative scores, no score exceeding the new maximum."*
+
+**Math verification:** since `energy_diff = abs(song['energy'] - target_energy)` is always between 0 and 1 (both values are on a 0-1 scale), `4.0 * (1 - energy_diff)` is always between 0 and 4.0 — the `max(0.0, ...)` wrapper still guarantees it can't go negative. New max possible score: `1.0 (genre) + 1.0 (mood) + 4.0 (energy) + 1.0 (acoustic) = 7.0` (up from 6.0).
+
+**Result — mostly *different*, not more accurate:**
+- **One win:** in the "Unknown Genre" (jazz) profile, the #1 result flipped from "Coffee Shop Stories" (the only jazz song, winning on genre alone) to "Midnight Coding" (lofi, a real mood + energy match) — genre alone stopped being enough to override an actual mood/energy fit.
+- **One new problem:** in the "Zero-Energy Boundary" (pop/happy/0.0) profile, "Autumn Sonata" — a classical/melancholic song with *zero* genre or mood match — climbed into the top 5, purely because its energy value happened to be close to 0.0 and energy was now worth up to +4.0.
+- **Verdict:** this traded one bias for another. It fixed "genre alone shouldn't win" but introduced "energy alone can smuggle in a vibe-mismatched song," which is arguably worse since energy is a single number while genre/mood describe more of what a song actually sounds and feels like.
+
+#### Experiment 2: Feature Removal (mood check disabled)
+
+**Prompt given to the AI coding assistant:** *"Temporarily comment out the mood-match check in `score_song()` (do not delete it) so I can see how rankings change without it, keeping genre, energy, and acousticness weights at their original values."*
+
+**Result — a clear regression, not just a difference:**
+- **"Contradictory Energy vs. Mood" (rock/sad/0.9)** is the clearest case: with mood active, "Broken Amplifier" (the actual sad rock song) correctly ranked #1. With mood removed, it dropped to **#3**, and "Storm Runner" (mood: intense — the *wrong* mood entirely) reclaimed #1 purely on genre + energy. Removing mood undid the exact fix verified in Step 2's dataset experiment.
+- **"High-Energy Pop" (pop/happy/0.9)** flipped order: "Sunrise City" previously won by a full point thanks to its mood match; without mood, "Gym Hero" (mood: intense, not happy at all) edges it out by 0.10 points purely because its energy value is marginally closer to the target.
+- **Verdict:** unlike the weight-shift experiment, this wasn't a trade-off — it was a straightforward loss of accuracy. Mood is the only signal that lets the system tell apart same-genre songs with very different vibes (e.g., "intense" vs. "sad" rock), and removing it collapses that distinction entirely.
+
+**Overall takeaway from Step 3:** changing weights (Experiment 1) shifts *which* bias the system has, while removing a whole feature (Experiment 2) removes a capability the system needs — these are not the same kind of change, and "more accurate" vs. "just different" depends entirely on which one you're doing.
+
+### Step 5: Comparing Profiles Side-by-Side
+
+**Which profiles I tested:** I ended up testing 10 different profiles total — the original starter default, 3 "normal" profiles meant to represent distinct, realistic tastes (High-Energy Pop, Chill Lofi, Deep Intense Rock), and 5 adversarial/edge-case profiles designed to try to break the scoring logic (Contradictory Energy vs. Mood, Unknown Genre, Zero-Energy Boundary, Max-Energy Boundary, Acoustic Contradicts Energy, All-Neutral). The full terminal output for all of them is below.
+
+**What surprised me most, overall:** how often a song won not because it was a great match, but because it was the *only* option in its lane, and how a song could win despite missing one of the four criteria entirely, as long as it made up for it with the other three. Neither of those things would be obvious just from reading the scoring code, you really only notice it by running a bunch of profiles side by side and asking "wait, why did that one win?"
+
+**Pairing up profiles and comparing what changed:**
+
+- **High-Energy Pop vs. Chill Lofi.** These two are basically opposites on purpose: one wants fast, upbeat pop (`target_energy=0.9`), the other wants slow, relaxed lofi (`target_energy=0.3`). The results make total sense: High-Energy Pop's top pick, Sunrise City, has an actual measured energy of 0.82 (close to loud and fast), while Chill Lofi's top pick, Library Rain, has an energy of 0.35 (close to slow and mellow). The system is correctly separating "loud" music from "quiet" music here, which is exactly what the energy number is supposed to capture.
+
+- **Deep Intense Rock vs. Contradictory Energy vs. Mood.** Both profiles ask for `favorite_genre: rock`, but one wants mood "intense" and the other wants mood "sad," with both requesting high energy (0.95 and 0.9). Deep Intense Rock's winner is Storm Runner (mood: intense — an actual match). Contradictory Energy vs. Mood's winner is Broken Amplifier (mood: sad — also an actual match), even though Broken Amplifier's own energy (0.45) is nowhere near the requested 0.9. This makes sense once you realize mood match is worth a full point: a real mood match plus a mediocre energy fit can still beat a great energy fit with no mood match, which is the system correctly prioritizing "does this feel right" over "is this exactly the right loudness."
+
+- **Zero-Energy Boundary vs. Max-Energy Boundary.** Same profile in every other way (pop, happy, not acoustic) except the energy target sits at the two opposite extremes, 0.0 versus 1.0. Both still pick Sunrise City as the #1 result, but the score is very different (4.36 vs. 5.64). That makes sense mathematically, Sunrise City's real energy is 0.82, so it's much closer to the "1.0" request than the "0.0" request, but it's a little strange from a listener's point of view: a system that recommends the exact same song whether you say you want the calmest or the most intense song in the world isn't really listening to that part of your request at all, it's leaning on genre and mood to paper over a bad energy fit.
+
+- **Unknown Genre vs. All-Neutral.** Neither profile has a clean genre-and-mood combo that "belongs together" the way pop/happy or rock/intense do. Unknown Genre asks for jazz (a genre that exists once in the catalog) with mood "chill" (which doesn't match that jazz song's actual mood, "relaxed"), so it only ever gets credit for genre, never mood. All-Neutral asks for lofi with mood "happy," which doesn't match any lofi song's real mood ("chill" or "focused"), so it only ever gets credit for genre too. Both end up with a winner that "sort of" fits, sort of doesn't, which makes sense: when a user's own preferences don't naturally go together in real music, the system can't manufacture agreement that isn't there in the data.
+
+- **Acoustic Contradicts Energy vs. Chill Lofi.** Both profiles set `likes_acoustic: True`, but Chill Lofi pairs it with a low energy target (0.3), which is a combination that shows up naturally in real acoustic music, while Acoustic Contradicts Energy pairs it with a very high energy target (0.95), a combination that's rare or nonexistent in the catalog. Chill Lofi's winner scores 5.90 out of a possible 6.0, nearly a perfect match on every criterion. Acoustic Contradicts Energy's winner only scores 4.92, and it does not get the acoustic bonus point at all, because no rock song loud enough to satisfy 0.95 energy is also acoustic-leaning. This makes complete sense: you can only get a great score when your stated preferences describe a song that could actually exist, and this profile describes one that basically can't.
+
+**Explaining it in plain language — why does "Gym Hero" keep showing up for people who just want "Happy Pop"?**
+
+Imagine you tell a friend, "put on something happy and poppy for me." Gym Hero is a pop song, so it checks that first box. But its actual vibe, according to its own mood label, is "intense," not "happy" — it's more of a pump-you-up gym anthem than a genuinely cheerful song. The reason it still shows up near the top of the list anyway is that the system doesn't only care about mood, it also gives a lot of credit for how fast/energetic a song is, and Gym Hero is extremely high-energy (0.93), almost exactly what a "give me energetic pop" request is asking for numerically. So even though it misses the "happy" feeling completely, it makes up for that by nailing the genre and the energy so precisely that its total score ends up close to, or sometimes higher than, a song that actually is happy but whose energy is a slightly worse numeric match. In plain terms: the system is like a shopper who's told "get me something happy," but grabs the loudest, most pop-sounding thing on the shelf without checking if it's actually a happy song. It's not wrong on purpose, it's just weighting "is this the right kind of loud" almost as heavily as "does this actually feel happy," and sometimes that lets an intense song sneak in under a happy request.
 
 ### Terminal Output: Stress Test & Adversarial Profiles
 
