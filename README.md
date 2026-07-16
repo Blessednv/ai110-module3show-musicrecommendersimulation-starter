@@ -52,6 +52,19 @@ For each song, it checks whether `genre` matches `favorite_genre` and whether `m
 **How songs get recommended:**
 Once every song in the catalog has a score, the Recommender sorts the full list from highest score to lowest and returns the top N songs. The scoring rule decides how good a single song is; the ranking rule decides the order the user actually sees.
 
+**Algorithm Recipe (finalized):**
+| Rule | Points |
+|---|---|
+| Genre match (`song.genre == favorite_genre`) | +2.0 |
+| Mood match (`song.mood == favorite_mood`) | +1.0 |
+| Energy similarity: `2.0 * (1 - abs(song.energy - target_energy))` | up to +2.0 |
+| Acousticness fit (high if `likes_acoustic`, low if not) | +1.0 |
+
+Max possible score: **6.0**
+
+**Potential biases:**
+This system might over-prioritize genre and mood matches, since those are worth the most points, and could bury a song that's a near-perfect energy match but sits in a genre the user didn't list as a favorite. It also assumes a single `favorite_genre` and `favorite_mood` per user, which flattens people who like more than one genre equally. Since the catalog is small and hand-picked, it can't reveal how these weights would hold up against a large, real-world dataset with more overlap between genres and moods.
+
 ---
 
 ## Getting Started
