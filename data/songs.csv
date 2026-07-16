@@ -9,3 +9,14 @@ id,title,artist,genre,mood,energy,tempo_bpm,valence,danceability,acousticness
 8,Night Drive Loop,Neon Echo,synthwave,moody,0.75,110,0.49,0.73,0.22
 9,Focus Flow,LoRoom,lofi,focused,0.40,80,0.59,0.60,0.78
 10,Rooftop Lights,Indigo Parade,indie pop,happy,0.76,124,0.81,0.82,0.35
+11,Broken Streetlights,Cash Motive,hip-hop,confident,0.68,95,0.55,0.81,0.15
+12,Autumn Sonata,Elena Vance,classical,melancholic,0.25,68,0.30,0.20,0.95
+13,Dust Road Home,Wade County,country,nostalgic,0.50,100,0.62,0.55,0.60
+14,Iron Collapse,Deathgrip,metal,angry,0.97,170,0.25,0.45,0.05
+15,Island Sway,Marley Tide,reggae,carefree,0.55,88,0.75,0.70,0.40
+16,Wildflower Letters,June Hollow,folk,romantic,0.40,84,0.68,0.48,0.82
+17,Pulse Overdrive,DJ Kinetic,EDM,euphoric,0.95,128,0.88,0.90,0.05
+18,Velvet Confession,Simone Rae,R&B,sensual,0.58,92,0.66,0.72,0.30
+19,Broken Amplifier,Voltline,rock,sad,0.45,98,0.32,0.50,0.15
+20,Riot Chorus,Deathgrip,rock,happy,0.88,140,0.72,0.75,0.08
+21,Gravel Road,Wade County,rock,chill,0.30,80,0.55,0.40,0.55
