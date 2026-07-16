@@ -115,6 +115,36 @@ Paste a sample of your recommender's output here as a text block so a reader can
 #   3. ...
 ```
 
+Actual output from `python -m src.main`, using the default profile (`favorite_genre="pop"`, `favorite_mood="happy"`, `target_energy=0.8`, `likes_acoustic=False`):
+
+```
+Loaded songs: 18
+
+Top recommendations:
+
+========================================
+1. Sunrise City by Neon Echo
+   Score: 5.96
+   Because: Genre match (+2.0), Mood match (+1.0), Energy similarity (+1.96), Acousticness match (+1.0)
+========================================
+2. Gym Hero by Max Pulse
+   Score: 4.74
+   Because: Genre match (+2.0), Energy similarity (+1.74), Acousticness match (+1.0)
+========================================
+3. Rooftop Lights by Indigo Parade
+   Score: 3.92
+   Because: Mood match (+1.0), Energy similarity (+1.92), Acousticness match (+1.0)
+========================================
+4. Night Drive Loop by Neon Echo
+   Score: 2.90
+   Because: Energy similarity (+1.90), Acousticness match (+1.0)
+========================================
+5. Storm Runner by Voltline
+   Score: 2.78
+   Because: Energy similarity (+1.78), Acousticness match (+1.0)
+========================================
+```
+
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
 
 ---
