@@ -5,6 +5,8 @@
 Give your model a short, descriptive name.  
 Example: **VibeFinder 1.0**  
 
+**MusicChoice 1.0**
+
 ---
 
 ## 2. Intended Use  
@@ -16,6 +18,15 @@ Prompts:
 - What kind of recommendations does it generate  
 - What assumptions does it make about the user  
 - Is this for real users or classroom exploration  
+
+**What kind of recommendations does it generate?**
+It looks at a small list of songs and picks the top 5 that best match what one person says they like. It's not looking at millions of songs, just this one small practice catalog.
+
+**What assumptions does it make about the user?**
+It assumes the user can describe their taste in exactly one genre, one mood, one energy level (from 0 to 1), and whether they like acoustic songs or not. It assumes people's taste fits neatly into those four boxes, which isn't really true for real listeners.
+
+**Is this for real users or classroom exploration?**
+This is for classroom exploration, not real users. It's a small project built to learn how recommender systems work, not something ready for real people to use every day.
 
 ---
 
@@ -32,6 +43,18 @@ Prompts:
 
 Avoid code here. Pretend you are explaining the idea to a friend who does not program.
 
+**What features of each song are used?**
+Each song has a genre, a mood, an energy level, and an acousticness level (how "unplugged" it sounds).
+
+**What user preferences are considered?**
+The user profile has a favorite genre, a favorite mood, a target energy level, and whether they like acoustic songs.
+
+**How does the model turn those into a score?**
+The model checks the song against each of those four things one at a time. It gives points if the genre matches, points if the mood matches, points based on how close the song's energy is to what the user wants, and points if the acousticness fits the user's taste. Then it adds all the points together to get one score per song, and the songs with the highest scores get recommended.
+
+**What changes did you make from the starter logic?**
+I mostly filled in what was left as TODOs, the scoring math and the ranking logic. Later, during experiments, I temporarily tried doubling the energy weight and halving the genre weight, and separately tried turning off the mood check completely, just to see what would happen. Both changes were reverted afterward, so the real system still uses the original weights.
+
 ---
 
 ## 4. Data  
@@ -45,6 +68,18 @@ Prompts:
 - Did you add or remove data  
 - Are there parts of musical taste missing in the dataset  
 
+**How many songs are in the catalog?**
+There are 21 songs in the catalog.
+
+**What genres or moods are represented?**
+There are 15 different genres (pop, lofi, rock, ambient, jazz, synthwave, indie pop, hip-hop, classical, country, metal, reggae, folk, EDM, R&B) and a bunch of different one-word moods like happy, chill, intense, sad, relaxed, moody, focused, confident, melancholic, nostalgic, angry, carefree, romantic, euphoric, and sensual.
+
+**Did you add or remove data?**
+Yes, I added 3 new rock songs (Broken Amplifier, Riot Chorus, Gravel Road) partway through testing, because I noticed rock only had one song and it was winning every rock-related search by default, not because it was actually the best match.
+
+**Are there parts of musical taste missing in the dataset?**
+Yes, a lot is missing. Most genres only have one song each, so there's basically no variety if that's your favorite genre. There's also no way to search by artist, decade, or language, and moods are just single words instead of a range, so there's no in-between feeling like "kind of happy but a little tired."
+
 ---
 
 ## 5. Strengths  
@@ -56,6 +91,15 @@ Prompts:
 - User types for which it gives reasonable results  
 - Any patterns you think your scoring captures correctly  
 - Cases where the recommendations matched your intuition  
+
+**User types for which it gives reasonable results?**
+It works best for users whose favorite genre has more than one song to pick from, like lofi or rock (after I added more rock songs). Those profiles get results that actually feel like a real comparison happened.
+
+**Any patterns you think your scoring captures correctly?**
+The energy-closeness scoring works the way I'd expect, it always picks the song whose energy number is nearest to what the user asked for, and never picks something wildly off unless nothing better exists.
+
+**Cases where the recommendations matched your intuition?**
+The Chill Lofi profile felt the most "right" to me. It picked slow, mellow, acoustic-leaning songs, which is exactly what someone asking for chill lofi music would want.
 
 ---
 
@@ -397,6 +441,18 @@ Prompts:
 - Improving diversity among the top results  
 - Handling more complex user tastes  
 
+**Additional features or preferences?**
+I'd let users pick more than one favorite genre or mood instead of just one, since real people don't only like one thing.
+
+**Better ways to explain recommendations?**
+I'd want the explanations to sound more like a person talking, right now it just lists point values, which is clear but a little robotic.
+
+**Improving diversity among the top results?**
+I'd try to stop the same 1-2 songs from dominating every list, maybe by only showing one song per artist in the top 5, so the list feels less repetitive.
+
+**Handling more complex user tastes?**
+I'd add "closeness" matching for genre and mood instead of requiring an exact spelling match, so "synth pop" and "synthwave" could still count as similar.
+
 ---
 
 ## 9. Personal Reflection  
@@ -408,3 +464,24 @@ Prompts:
 - What you learned about recommender systems  
 - Something unexpected or interesting you discovered  
 - How this changed the way you think about music recommendation apps  
+
+**What you learned about recommender systems?**
+I learned that a recommendation system does not need sophisticated machine learning to appear personalized; a handful of simple rules, combined and weighted correctly, can produce results that feel tailored to an individual. At the same time, I learned that these same simple rules can conceal significant unfairness, patterns that remain invisible until the system is tested systematically across a range of different users.
+
+**Something unexpected or interesting you discovered?**
+The most striking discovery was that an identical symptom, the same song ranking first repeatedly, can originate from two entirely distinct causes. In one case, a song wins because the underlying data offers no genuine alternative. In another, it wins because the scoring formula itself overweights certain criteria. These two causes look identical when only the output is observed, yet they require completely different remedies.
+
+**What was your biggest learning moment during this project?**
+The most significant moment arrived not while writing code, but while comparing outputs across profiles. I had assumed the scoring logic behaved correctly because it produced a plausible list for the default profile. It was only through systematic comparison, testing ten distinct profiles side by side, that I recognized certain songs were winning for reasons entirely unrelated to a genuine match. That experience taught me that testing a single case, however sensible it appears, does not constitute a full evaluation of a scoring rule's behavior.
+
+**How did using AI tools help you, and when did you need to double-check them?**
+AI assistance was most useful for two tasks: rapidly proposing edge-case profiles I would not have devised independently, such as the contradictory mood/energy example and the unknown-genre example, and explaining, with the actual weight values, why a particular song had ranked first. I needed to verify each explanation myself rather than accept it outright. In one instance, I confirmed a claim that a genre had only one representative song by counting genre entries directly in the dataset, rather than trusting the summary as given. I also re-ran the recommender after every proposed change to confirm the reported scores matched the actual terminal output, rather than trusting a description of what the change "should" do.
+
+**What surprised you about how simple algorithms can still "feel" like recommendations?**
+What surprised me most was how convincingly a handful of conditional checks and one weighted sum could imitate the impression of personal taste. Because the scoring produces a ranked list with a plausible explanation attached to each song, it is easy to mistake consistent behavior for genuinely intelligent judgment. Only by deliberately attempting to break the logic with adversarial profiles did the underlying simplicity, and its resulting biases, become visible.
+
+**What would you try next if you extended this project?**
+If I extended this project, I would first address the exact-match limitation on genre and mood by introducing some notion of similarity between labels, rather than requiring identical text. I would also expand the dataset so that every genre has multiple representative songs, removing the artificial dominance that occurs when a song has no real competitor. Finally, I would experiment with allowing a user profile to specify a small set of acceptable moods or genres rather than exactly one, since real listeners rarely confine their taste to a single narrow preference.
+
+**How this changed the way you think about music recommendation apps?**
+This project changed how I interpret the recommendations produced by commercial platforms such as Spotify. I no longer assume that a suggested song reflects genuine understanding of my taste. It is more likely that my preferences have been reduced to a small set of numerical values, and the platform is simply returning whichever option scores highest according to its internal formula, limitations and biases included.
