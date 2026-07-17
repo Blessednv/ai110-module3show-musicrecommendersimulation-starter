@@ -182,7 +182,24 @@ Read and complete `model_card.md`:
 Write 1 to 2 paragraphs here about what you learned:
 
 - about how recommenders turn data into predictions
+
+A recommender system like this one turns data into predictions by reducing everything about a song, and everything about a listener, into a small set of numbers and labels, then measuring how closely they line up. Genre and mood become simple category matches, energy and acousticness become numeric distances, and every one of those pieces gets converted into points that are added together into a single score. The song with the highest total score is treated as the "best" prediction, even though that score is really just an arithmetic proxy for taste, not any deeper understanding of what a listener actually wants to hear.
+
 - about where bias or unfairness could show up in systems like this
+
+Bias and unfairness can show up in a system like this in ways that are easy to miss just by reading the code. In this project, one bias came from the data itself: several genres had only one song, so any user who preferred that genre received the same result every time, regardless of how well it actually matched their mood or energy. A second bias came from the weighting: genre and mood together were worth enough points that a song could win even with a badly mismatched energy value, meaning the system quietly favored certain kinds of matches over others without ever being explicitly designed to do so. Neither kind of bias was visible from a single test case, it only became clear after comparing many different user profiles side by side.
+
+**What was your biggest learning moment during this project?**
+The most significant moment arrived not while writing code, but while comparing outputs across profiles. I had assumed the scoring logic behaved correctly because it produced a plausible list for the default profile. It was only through systematic comparison, testing ten distinct profiles side by side, that I recognized certain songs were winning for reasons entirely unrelated to a genuine match. That experience taught me that testing a single case, however sensible it appears, does not constitute a full evaluation of a scoring rule's behavior.
+
+**How did using AI tools help you, and when did you need to double-check them?**
+AI assistance was most useful for two tasks: rapidly proposing edge-case profiles I would not have devised independently, such as the contradictory mood/energy example and the unknown-genre example, and explaining, with the actual weight values, why a particular song had ranked first. I needed to verify each explanation myself rather than accept it outright. In one instance, I confirmed a claim that a genre had only one representative song by counting genre entries directly in the dataset, rather than trusting the summary as given. I also re-ran the recommender after every proposed change to confirm the reported scores matched the actual terminal output, rather than trusting a description of what the change "should" do.
+
+**What surprised you about how simple algorithms can still "feel" like recommendations?**
+What surprised me most was how convincingly a handful of conditional checks and one weighted sum could imitate the impression of personal taste. Because the scoring produces a ranked list with a plausible explanation attached to each song, it is easy to mistake consistent behavior for genuinely intelligent judgment. Only by deliberately attempting to break the logic with adversarial profiles did the underlying simplicity, and its resulting biases, become visible.
+
+**What would you try next if you extended this project?**
+If I extended this project, I would first address the exact-match limitation on genre and mood by introducing some notion of similarity between labels, rather than requiring identical text. I would also expand the dataset so that every genre has multiple representative songs, removing the artificial dominance that occurs when a song has no real competitor. Finally, I would experiment with allowing a user profile to specify a small set of acceptable moods or genres rather than exactly one, since real listeners rarely confine their taste to a single narrow preference.
 
 
 
